@@ -11,8 +11,7 @@ api_key_path = api_key_path.read_text(encoding="utf-8").strip()
 GOOGLE_API_KEY = Path(__file__).with_name("gemini_api_key.txt")
 GOOGLE_API_KEY = GOOGLE_API_KEY.read_text(encoding="utf-8").strip()
 
-
-topic = "tesla"
+topic = 'amazon'
 
 url = (
     f"https://newsapi.org/v2/everything?"
@@ -22,27 +21,22 @@ url = (
     f"apiKey={api_key_path}&"
     f"language=en"
 )
+# Make request
+request = requests.get(url)
 
 # Make request
-r = requests.get(url, timeout=20)
-r.raise_for_status()
+r = requests.get(url)
 
 # Get a dictionary with data
-content = r.json()
+content = request.json()
+articles = content["articles"][:5]
 
-articles = content["articles"][:3]
-
-article_text = "\n\n".join(
-    f"Title: {article.get('title', '')}\n"
-    f"Description: {article.get('description', '')}\n"
-    f"URL: {article.get('url', '')}"
-    for article in articles
-)
 
 # AI summarizing the news
 model = init_chat_model(
-    model="gemini-3-flash-preview", model_provider="google-genai",
-    api_key=GOOGLE_API_KEY
+    model="gemini-2.5-flash",
+    model_provider="google-genai",
+    api_key=GOOGLE_API_KEY,
 )
 
 prompt = f"""
@@ -52,25 +46,16 @@ Paragraph 1: summarize the most important news about {topic}.
 Paragraph 2: translate the summary into Japanese.
 Paragraph 3: list the most relevant article URL.
 Use only the articles below:
-{article_text}
+{articles}
 """
 
-print("Generating summary...")
 response = model.invoke(prompt)
-response_content = response.content
-if isinstance(response_content, list):
-    response_str = "\n".join(
-        item.get("text", "") if isinstance(item, dict) else str(item)
-        for item in response_content
-    )
-else:
-    response_str = str(response_content)
+response_str = response.content
 
 
-print("Sending email...")
-send_email(message=response_str)
+body = "Subject: News Summary\n\n" + response_str + "\n\n"
 
-print("Done.")
+body = body.encode('utf-8')
 
+send_email(message=body)
 
-# body = body.encode("utf-8")

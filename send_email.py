@@ -1,6 +1,6 @@
 import smtplib
 import ssl
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 from pathlib import Path
 
 mail_password = Path(__file__).with_name("mail_info.txt")
@@ -16,11 +16,20 @@ def send_email(message):
 
     receiver = "ishiharu5232@gmail.com"
     context = ssl.create_default_context()
-    email_message = MIMEText(message, _charset="utf-8")
-    email_message["Subject"] = "AI News Summary"
-    email_message["From"] = username
-    email_message["To"] = receiver
+    
+    if isinstance(message, bytes):
+        message = message.decode('utf-8')
+    
+    msg = EmailMessage()
+    msg.set_content(message)          # 本文をセット（日本語も自動で正しくエンコードされます）
+    msg['Subject'] = 'News Summary'   # 件名
+    msg['From'] = username            # 送信元
+    msg['To'] = receiver              # 送信先
 
+    context = ssl.create_default_context()
+    
     with smtplib.SMTP_SSL(host, port, context=context, timeout=20) as server:
         server.login(username, password)
-        server.send_message(email_message)
+
+        server.send_message(msg)
+
